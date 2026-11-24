@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f5f4ed">
+  <meta name="description" content="给几个字母，让字符级 RNN 为你生成一个名字。支持前缀、后缀和中间片段补全，还能看到每一步的候选字母与概率。">
+  <title>Name Lab · 让字母长成名字</title>
+  <link rel="icon" href="./favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./styles.css">
+  <script type="module" src="./app.js"></script>
+</head>
+<body>
+  <div class="page-shell">
+    <header class="site-header">
+      <a class="brand" href="./" aria-label="Name Lab 首页"><span class="brand-mark" aria-hidden="true">n<span>↗</span></span><span>name<span class="brand-light">lab</span><sup>字母实验室</sup></span></a>
+      <nav aria-label="主导航"><a href="#process">看看生成过程 <span aria-hidden="true">↘</span></a><a class="source-link" href="https://github.com/vibrant700/rnn-name-lab" target="_blank" rel="noopener">GitHub <span aria-hidden="true">↗</span></a></nav>
+    </header>
+
+    <main>
+      <section class="hero" aria-labelledby="page-title">
+        <div><p class="eyebrow"><span class="live-dot" aria-hidden="true"></span> A LETTER. A POSSIBILITY.</p><h1 id="page-title">让字母，<br>长成一个<span class="hero-accent">名字。</span></h1><p class="hero-description">留下一点灵感，让神经网络接着写。<br>每一次选择，都能看见它的来由。</p></div>
+        <div class="hero-note" aria-hidden="true"><div class="letter-sketch"><span>a</span><span class="sketch-dash"></span><span class="sketch-end">?</span></div><p>小小的字母，<br>也有很多种可能。</p><span class="note-index">EXPERIMENT № 007 / RNN</span></div>
+      </section>
+
+      <section class="workspace" aria-label="名字生成器">
+        <form class="control-panel" id="generator-form">
+          <div class="section-kicker"><span>01 / 留下灵感</span><span class="tiny-square" aria-hidden="true"></span></div>
+          <h2>从哪里开始？</h2>
+          <div class="mode-tabs" role="tablist" aria-label="补全方式">
+            <button type="button" role="tab" id="mode-prefix" aria-selected="true" aria-controls="input-panel" data-mode="prefix"><span class="mode-symbol">ab<span>··</span></span>开头</button>
+            <button type="button" role="tab" id="mode-suffix" aria-selected="false" aria-controls="input-panel" tabindex="-1" data-mode="suffix"><span class="mode-symbol"><span>··</span>na</span>结尾</button>
+            <button type="button" role="tab" id="mode-middle" aria-selected="false" aria-controls="input-panel" tabindex="-1" data-mode="middle"><span class="mode-symbol"><span>·</span>an<span>·</span></span>中间</button>
+          </div>
+          <div id="input-panel" role="tabpanel" aria-labelledby="mode-prefix">
+            <label class="input-label" for="fragment" id="fragment-label">名字的开头</label>
+            <div class="fragment-field"><input id="fragment" name="fragment" value="al" maxlength="19" autocomplete="off" autocapitalize="none" spellcheck="false" aria-describedby="fragment-hint"><span id="input-direction" aria-hidden="true">→</span></div>
+            <p class="field-hint" id="fragment-hint">输入一到几个英文字母，补全后面的可能。</p>
+            <div class="example-row"><span>试试看</span><div id="examples"></div></div>
+          </div>
+          <div class="temperature-label"><label for="temperature">一点随机性</label><output id="temperature-value" for="temperature">1.0</output></div>
+          <input class="temperature" id="temperature" type="range" min="0.6" max="1.4" step="0.1" value="1">
+          <div class="range-caption"><span>更稳妥</span><span>更多惊喜</span></div>
+          <button class="generate-button" id="generate-button" type="submit" disabled><span id="generate-label">正在唤醒字母…</span><span aria-hidden="true">↗</span></button>
+          <p class="status-message" id="status" role="status" aria-live="polite">正在加载模型，首次打开需要片刻。</p>
+          <div class="local-note"><span aria-hidden="true">◈</span><span>在你的浏览器里生成<br><small>无需登录，随时探索。</small></span></div>
+        </form>
+
+        <div class="results-panel">
+          <div class="section-kicker"><span>02 / 六种可能</span><span id="batch-label">YOUR NEXT NAME</span></div>
+          <div class="results-heading"><h2>哪一个，让你心动？</h2><span class="selection-hint">点击名字，探索它的诞生 ↓</span></div>
+          <div class="name-grid" id="name-grid" aria-label="生成的名字" aria-busy="true">
+            <div class="empty-card">A little inspiration<br><span>goes a long way.</span></div>
+          </div>
+          <div class="results-footnote"><span><i class="legend-dot" aria-hidden="true"></i>高亮部分是你给出的字母</span><span id="generation-timing">字符级 RNN · 真正的逐字生成</span></div>
+          <div class="result-statement"><span class="statement-line" aria-hidden="true"></span><p>名字没有标准答案。<br><em>喜欢，就是它的意义。</em></p><span class="statement-flower" aria-hidden="true">✳</span></div>
+        </div>
+      </section>
+
+      <section class="process-panel" id="process" aria-labelledby="process-title">
+        <div class="process-top"><div><p class="section-kicker">03 / 一个名字的诞生</p><h2 id="process-title">把好奇，留给每一步。</h2></div><button id="save-image" class="quiet-button" type="button" disabled>保存过程图 <span aria-hidden="true">↗</span></button></div>
+        <div id="process-placeholder" class="process-placeholder">选一个喜欢的名字，看看它如何被写出来。</div>
+        <div id="process-content" hidden>
+          <div class="process-layout">
+            <div class="name-story"><div class="story-header"><span class="small-label">我喜欢的名字</span><button id="copy-name" class="text-button" type="button">复制名字 ↗</button></div><div id="favorite-name" class="favorite-name"></div><p id="story-description" class="story-description"></p><div id="end-status" class="end-status"></div><div class="step-preview"><div class="small-label" id="step-context-label">此刻，已经写下</div><div id="step-before" class="step-before"></div><div class="prediction-arrow"><span id="prediction-direction">下一笔</span><span aria-hidden="true">↘</span></div><div class="chosen-letter"><span id="chosen-letter"></span><div><span class="small-label">实际选中</span><strong id="chosen-probability"></strong></div></div></div></div>
+            <div class="probability-panel"><div class="chart-heading"><h3>此刻，最可能的 5 个字母</h3><span class="chart-tag">TOP 5</span></div><div class="chart-scale"><span>模型预测概率</span><span id="chart-max">100%</span></div><div id="probability-bars" class="probability-bars" role="list" aria-label="前五个候选字符及概率"></div><p class="chart-note">显示模型的原始预测概率。实际采样还受到随机性和补全约束的影响，选中字符可能不在前五名。</p><p class="step-note" id="step-note"></p></div>
+          </div>
+          <div class="timeline-header"><div><span class="small-label">生成轨迹</span><span id="step-counter" class="step-counter"></span></div><button id="play-process" class="play-button" type="button" aria-pressed="false"><span aria-hidden="true">▶</span> 播放过程</button></div>
+          <div id="timeline" class="timeline" aria-label="选择生成步骤"></div>
+        </div>
+      </section>
+
+      <details class="training-section" id="training-section"><summary><span><span class="section-kicker">BEHIND THE LETTERS</span><strong>看看它是怎样学会的</strong></span><span class="details-plus" aria-hidden="true">＋</span></summary><div class="training-content"><div class="training-intro"><h2>从 7,944 个名字里，<br>学习字母的相遇。</h2><p>去重后固定划分为训练、验证和测试集。模型每轮学习后，在独立验证集上计算损失，保存表现最好的一轮。</p><div class="dataset-stats"><span><strong>6,061</strong>训练名字</span><span><strong>757</strong>验证名字</span><span><strong>757</strong>测试名字</span></div></div><div class="training-chart-panel"><label class="small-label" for="training-model">查看模型</label><select id="training-model"><option value="forward">前向 RNN / 开头补全</option><option value="backward">反向 RNN / 结尾补全</option><option value="seq2seq">Seq2seq / 中间补全</option></select><div id="loss-chart" class="loss-chart" aria-live="polite"></div><div class="loss-legend"><span><i class="train-color"></i>训练 loss</span><span><i class="val-color"></i>验证 loss</span><span id="best-epoch"></span></div><p class="training-caveat">不同模型的预测任务不同，loss 不用于跨任务排名。曲线如实展示训练结果，不代表越训练越好。</p></div></div></details>
+    </main>
+
+    <footer><a class="footer-brand" href="./">namelab<span> / 字母实验室</span></a><p>用一点数学，写一个新的开始。</p><a href="https://github.com/vibrant700/rnn-name-lab" target="_blank" rel="noopener">查看代码与模型原理 ↗</a></footer>
+  </div>
+</body>
+</html>
