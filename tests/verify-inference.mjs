@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { createModels, generateName, seededRandom } from "../docs/engine.js";
+import { createModels, generateName, generateNameSteps, seededRandom } from "../docs/engine.js";
 
 const manifest = JSON.parse(await readFile(new URL("../docs/assets/models.json", import.meta.url), "utf8"));
 const binary = await readFile(new URL("../docs/assets/weights.bin", import.meta.url));
@@ -33,6 +33,9 @@ for (const [mode, fragment] of [["prefix", "al"], ["suffix", "na"], ["middle", "
       if (mode === "suffix") assert.ok(result.name.endsWith(fragment));
       if (mode === "middle") assert.ok(result.name.slice(1, -1).includes(fragment));
       for (const step of result.steps) {
+        assert.equal(step.distribution.length, mode === "middle" ? 32 : 30);
+        assert.ok(Math.abs(step.distribution.reduce((sum, candidate) => sum + candidate.probability, 0) - 1) < 1e-12);
+        assert.deepEqual(step.top5, [...step.distribution].sort((a, b) => b.probability - a.probability).slice(0, 5));
         assert.equal(step.top5.length, 5);
         assert.ok(step.top5.every((candidate, i, all) => i === 0 || candidate.probability <= all[i-1].probability));
       }
@@ -41,6 +44,12 @@ for (const [mode, fragment] of [["prefix", "al"], ["suffix", "na"], ["middle", "
         terminated++;
       }
       assert.deepEqual(result, generateName(models, options, seededRandom(seed)));
+      const streamed = generateNameSteps(models, options, seededRandom(seed));
+      const liveSteps = [];
+      let next = streamed.next();
+      while (!next.done) { liveSteps.push(next.value); next = streamed.next(); }
+      assert.deepEqual(liveSteps, result.steps);
+      assert.deepEqual(next.value, result);
       cases++;
     }
   }

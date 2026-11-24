@@ -68,16 +68,16 @@ function recordStep(model, logits, samplingLogits, random, temperature, before, 
   const original = softmax(logits);
   const sampling = softmax(samplingLogits, temperature);
   const selected = sample(sampling, random);
-  const top5 = original.map((probability, index) => ({ char: model.chars[index], probability }))
-    .sort((a, b) => b.probability - a.probability).slice(0, 5);
+  const distribution = original.map((probability, index) => ({ char: model.chars[index], probability }));
+  const top5 = [...distribution].sort((a, b) => b.probability - a.probability).slice(0, 5);
   return {
-    before, after: after(model.chars[selected]), char: model.chars[selected], top5,
+    before, after: after(model.chars[selected]), char: model.chars[selected], top5, distribution,
     probability: original[selected], samplingProbability: sampling[selected],
     constrained: Array.from(logits).some((value, i) => value !== samplingLogits[i]),
   };
 }
 
-export function generateName(models, { mode, fragment, temperature = 1, maxLength = 20 }, random = Math.random) {
+export function* generateNameSteps(models, { mode, fragment, temperature = 1, maxLength = 20 }, random = Math.random) {
   const model = models[mode === "suffix" ? "backward" : mode === "middle" ? "decoder" : "forward"];
   if (!fragment.trim() || [...fragment].some(c => !model.indices.has(c) || ".^#".includes(c))) {
     throw new Error("请输入英文名字片段，可包含字母、空格、连字符或撇号。");
@@ -127,6 +127,7 @@ export function generateName(models, { mode, fragment, temperature = 1, maxLengt
       break;
     }
     steps.push({ ...step, index: steps.length + 1, templateBefore: template });
+    yield steps.at(-1);
     if (step.char === ".") { terminated = true; break; }
     template += step.char;
     previous = step.char;
@@ -134,4 +135,11 @@ export function generateName(models, { mode, fragment, temperature = 1, maxLengt
   }
   if (!terminated) truncated = true;
   return { name: display(template), mode, fragment, steps, terminated, truncated, temperature };
+}
+
+export function generateName(models, options, random = Math.random) {
+  const sequence = generateNameSteps(models, options, random);
+  let next = sequence.next();
+  while (!next.done) next = sequence.next();
+  return next.value;
 }

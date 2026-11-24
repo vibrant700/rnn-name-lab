@@ -47,26 +47,27 @@
         </form>
 
         <div class="results-panel">
-          <div class="section-kicker"><span>02 / 六种可能</span><span id="batch-label">YOUR NEXT NAME</span></div>
+      <section class="process-panel" id="process" aria-labelledby="process-title">
+        <div class="process-top"><div><p class="section-kicker">02 / 逐字生成</p><h2 id="process-title">看一个名字，慢慢诞生。</h2></div><button id="save-image" class="quiet-button" type="button" disabled>保存过程图 <span aria-hidden="true">↗</span></button></div>
+        <div id="process-placeholder" class="process-placeholder">选一个喜欢的名字，看看它如何被写出来。</div>
+        <div id="process-content" hidden>
+          <div class="process-layout">
+            <div class="name-story"><div class="story-header"><span class="small-label">名字在这里逐字长出来</span><button id="copy-name" class="text-button" type="button">复制名字 ↗</button></div><div class="generation-box"><div class="generation-box-header"><span class="live-dot" aria-hidden="true"></span><span id="generation-phase">等待第一笔</span></div><div id="favorite-name" class="favorite-name" aria-live="polite" aria-atomic="true"></div><div id="generation-transition" class="generation-transition"></div></div><p id="story-description" class="story-description"></p><div id="end-status" class="end-status"></div><div class="step-preview"><div class="small-label" id="step-context-label">预测前的片段</div><div id="step-before" class="step-before"></div><div class="prediction-arrow"><span id="prediction-direction">下一笔</span><span aria-hidden="true">↘</span></div><div class="chosen-letter"><span id="chosen-letter"></span><div><span class="small-label">实际选中</span><strong id="chosen-probability"></strong></div></div></div></div>
+            <div class="probability-panel"><div class="chart-heading"><h3>此刻，最可能的 5 个字母</h3><span class="chart-tag">TOP 5</span></div><div class="chart-scale"><span>模型预测概率</span><span id="chart-max">100%</span></div><div id="probability-bars" class="probability-bars" role="list" aria-label="前五个候选字符及概率"></div><p class="chart-note">显示模型的原始预测概率。实际采样还受到随机性和补全约束的影响，选中字符可能不在前五名。</p><p class="step-note" id="step-note"></p></div>
+          </div>
+          <div class="distribution-panel"><div class="distribution-heading"><h3>全部字符的预测概率</h3><div class="distribution-legend"><span><i class="top5-swatch"></i>Top-5</span><span><i class="selected-swatch"></i>本步选中</span></div></div><div id="all-probabilities" class="all-probabilities" role="list" aria-label="模型全部字符的预测概率"></div></div>
+          <div class="timeline-header"><div><span class="small-label">生成轨迹</span><span id="step-counter" class="step-counter"></span></div><div class="playback-controls"><label class="visually-hidden" for="playback-speed">生成演示速度</label><select id="playback-speed" aria-label="生成演示速度"><option value="1600">慢速</option><option value="900" selected>正常</option><option value="400">快速</option></select><button id="restart-process" class="play-button" type="button">↺ 重播</button><button id="next-step" class="play-button" type="button">单步 →</button><button id="play-process" class="play-button" type="button" aria-pressed="false"><span aria-hidden="true">▶</span> 播放过程</button></div></div>
+          <div id="timeline" class="timeline" aria-label="选择生成步骤"></div>
+        </div>
+      </section>
+
+          <div class="section-kicker"><span>03 / 六种可能</span><span id="batch-label">YOUR NEXT NAME</span></div>
           <div class="results-heading"><h2>哪一个，让你心动？</h2><span class="selection-hint">点击名字，探索它的诞生 ↓</span></div>
           <div class="name-grid" id="name-grid" aria-label="生成的名字" aria-busy="true">
             <div class="empty-card">A little inspiration<br><span>goes a long way.</span></div>
           </div>
           <div class="results-footnote"><span><i class="legend-dot" aria-hidden="true"></i>高亮部分是你给出的字母</span><span id="generation-timing">字符级 RNN · 真正的逐字生成</span></div>
           <div class="result-statement"><span class="statement-line" aria-hidden="true"></span><p>名字没有标准答案。<br><em>喜欢，就是它的意义。</em></p><span class="statement-flower" aria-hidden="true">✳</span></div>
-        </div>
-      </section>
-
-      <section class="process-panel" id="process" aria-labelledby="process-title">
-        <div class="process-top"><div><p class="section-kicker">03 / 一个名字的诞生</p><h2 id="process-title">把好奇，留给每一步。</h2></div><button id="save-image" class="quiet-button" type="button" disabled>保存过程图 <span aria-hidden="true">↗</span></button></div>
-        <div id="process-placeholder" class="process-placeholder">选一个喜欢的名字，看看它如何被写出来。</div>
-        <div id="process-content" hidden>
-          <div class="process-layout">
-            <div class="name-story"><div class="story-header"><span class="small-label">我喜欢的名字</span><button id="copy-name" class="text-button" type="button">复制名字 ↗</button></div><div id="favorite-name" class="favorite-name"></div><p id="story-description" class="story-description"></p><div id="end-status" class="end-status"></div><div class="step-preview"><div class="small-label" id="step-context-label">此刻，已经写下</div><div id="step-before" class="step-before"></div><div class="prediction-arrow"><span id="prediction-direction">下一笔</span><span aria-hidden="true">↘</span></div><div class="chosen-letter"><span id="chosen-letter"></span><div><span class="small-label">实际选中</span><strong id="chosen-probability"></strong></div></div></div></div>
-            <div class="probability-panel"><div class="chart-heading"><h3>此刻，最可能的 5 个字母</h3><span class="chart-tag">TOP 5</span></div><div class="chart-scale"><span>模型预测概率</span><span id="chart-max">100%</span></div><div id="probability-bars" class="probability-bars" role="list" aria-label="前五个候选字符及概率"></div><p class="chart-note">显示模型的原始预测概率。实际采样还受到随机性和补全约束的影响，选中字符可能不在前五名。</p><p class="step-note" id="step-note"></p></div>
-          </div>
-          <div class="timeline-header"><div><span class="small-label">生成轨迹</span><span id="step-counter" class="step-counter"></span></div><button id="play-process" class="play-button" type="button" aria-pressed="false"><span aria-hidden="true">▶</span> 播放过程</button></div>
-          <div id="timeline" class="timeline" aria-label="选择生成步骤"></div>
         </div>
       </section>
 
