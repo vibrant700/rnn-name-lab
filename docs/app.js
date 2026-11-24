@@ -4,17 +4,16 @@ const modes = {
   suffix: { label: "名字的结尾", hint: "留一个你喜欢的结尾，向前寻找一个名字。", examples: ["na", "son", "ia"], direction: "←", description: "给定结尾，反向 RNN 从右向左补全。" },
   middle: { label: "名字中间的片段", hint: "保留这几个字母，让模型探索它的左右两侧。", examples: ["ann", "li", "ari"], direction: "↔", description: "编码器读取片段，解码器生成两侧，再将片段嵌入名字。" },
 };
-const worker = new Worker(new URL("./worker.js", import.meta.url), { type: "module" });
+const worker = new Worker(new URL("./worker.js?v=20261124-selection", import.meta.url), { type: "module" });
 let mode = "prefix";
 let ready = false;
 let loading = true;
 let busy = false;
 let results = [];
-let selected = 0;
+let selected = -1;
 let stepIndex = 0;
 let batch = 0;
 let playTimer;
-let streaming = false;
 let playing = false;
 let requestId = 0;
 let training;
@@ -48,7 +47,7 @@ function status(message, error = false) {
 function setBusy(value) {
   busy = value;
   $("generate-button").disabled = value;
-  $("generate-label").textContent = value ? "字母正在相遇…" : "生成并逐字演示";
+  $("generate-label").textContent = value ? "正在生成候选…" : "生成候选名字";
   document.querySelectorAll("[data-mode]").forEach(button => button.disabled = value);
   $("name-grid").setAttribute("aria-busy", String(value));
 }
@@ -91,10 +90,14 @@ function requestGeneration(reveal = false) {
   }
   $("fragment").value = fragment;
   stopPlayback();
-  streaming = false;
+  selected = -1;
+  results = [];
+  $("process").hidden = true;
+  $("process-content").hidden = true;
+  $("name-grid").replaceChildren(node("div", "empty-card streaming-placeholder", "正在寻找六个名字…"));
   setBusy(true);
-  if (reveal) $("process").scrollIntoView({ behavior: "smooth", block: "start" });
-  status("正在逐字生成，第一个名字完成后会提供更多候选。");
+  if (reveal) $("candidates").scrollIntoView({ behavior: "smooth", block: "start" });
+  status("先生成候选名字，再点选一个查看逐字过程。");
   const seed = crypto.getRandomValues(new Uint32Array(1))[0];
   worker.postMessage({ type: "generate", id: ++requestId, seed, options: { mode, fragment, temperature: Number($("temperature").value), maxLength: 20 } });
 }
@@ -104,44 +107,19 @@ worker.onmessage = ({ data }) => {
   if (data.type === "ready") {
     ready = true;
     loading = false;
-    requestGeneration();
-  } else if (data.type === "started") {
-    streaming = true;
     setBusy(false);
-    results = [{ ...data.options, name: data.options.mode === "middle" ? "" : data.options.fragment,
-      steps: [], terminated: false, truncated: false, pending: true }];
-    selected = 0;
-    chooseResult(0, false);
-    playing = true;
-    updatePlaybackButton();
-    $("name-grid").replaceChildren(node("div", "empty-card streaming-placeholder", "正在写下第一个名字…"));
-    $("favorite-name").textContent = titleCase(results[0].name) || "·";
-    $("generation-phase").textContent = "模型正在预测第一笔";
-    $("probability-bars").replaceChildren();
-    $("all-probabilities").replaceChildren();
-  } else if (data.type === "step") {
-    const result = results[0];
-    result.steps.push(data.step);
-    result.name = data.step.after;
-    result.terminated = data.step.char === ".";
-    renderTimeline();
-    renderStep(result.steps.length - 1);
-    if (playing) scheduleNext();
+    status("输入片段，生成候选名字后，选一个喜欢的再看过程。");
   } else if (data.type === "results") {
-    streaming = false;
     stopPlayback();
     setBusy(false);
     results = data.results;
     batch++;
     $("batch-label").textContent = `BATCH ${String(batch).padStart(3, "0")}`;
-    $("generation-timing").textContent = `${results[0].steps.length} 步预测 · 逐字演示完成`;
-    status("生成完成。可重播、单步查看，或选择另一个候选名字。");
-    selected = 0;
+    $("generation-timing").textContent = "点选一个名字，查看逐字生成过程";
+    status("候选已生成。请选择一个名字，再展示字母和概率。");
+    selected = -1;
     renderCards();
-    chooseResult(selected, false);
-    renderStep(results[selected].steps.length - 1);
   } else if (data.type === "error") {
-    streaming = false;
     stopPlayback();
     setBusy(false);
     loading = false;
@@ -150,7 +128,6 @@ worker.onmessage = ({ data }) => {
   }
 };
 worker.onerror = () => {
-  streaming = false;
   stopPlayback();
   setBusy(false);
   loading = false;
@@ -174,23 +151,24 @@ function renderCards() {
   }));
 }
 
-function chooseResult(index, autoplay = true) {
+function chooseResult(index) {
   stopPlayback();
   selected = index;
   stepIndex = 0;
   const result = results[index];
+  $("process").hidden = false;
   $("process-placeholder").hidden = true;
   $("process-content").hidden = false;
-  $("save-image").disabled = Boolean(result.pending);
-  $("copy-name").disabled = Boolean(result.pending);
-  $("restart-process").disabled = Boolean(result.pending);
+  $("save-image").disabled = false;
+  $("copy-name").disabled = false;
+  $("restart-process").disabled = false;
   $("story-description").textContent = `${modes[result.mode].description} 输入片段「${result.fragment}」。`;
-  $("end-status").textContent = result.pending ? "◌ 模型按步预测，概率随每个字符同步更新" : result.terminated ? "◉ 模型预测了结束符 EOS，名字生成完成" : "◌ 已到长度上限，模型尚未预测结束符";
+  $("end-status").textContent = result.terminated ? "◉ 模型预测了结束符 EOS，名字生成完成" : "◌ 已到长度上限，模型尚未预测结束符";
   $("end-status").classList.toggle("truncated", !result.terminated);
   $("prediction-direction").textContent = result.mode === "suffix" ? "向左补一笔" : "下一笔";
   renderTimeline();
   renderStep(0);
-  if (autoplay && result.steps.length) startPlayback();
+  startPlayback();
 }
 
 function renderTimeline() {
@@ -219,10 +197,9 @@ function renderGrowingName(result, step) {
   if (step.char !== ".") $("favorite-name").append(node("span", "typing-cursor"));
   $("favorite-name").dataset.current = after;
   $("generation-phase").textContent = step.char === "." ? "预测到 EOS · 名字完成" :
-    streaming ? (playing ? `正在生成 · 第 ${step.index} 笔` : `已暂停 · 第 ${step.index} 笔`) :
     playing ? `逐字回放 · 第 ${step.index} 笔` : `第 ${step.index} 步的生成结果`;
   $("generation-transition").textContent = `${step.before || "开始"} ${result.mode === "suffix" ? "←" : "→"} ${step.after || "开始"}${step.char === "." ? "  [EOS]" : ""}`;
-  const complete = !result.pending && stepIndex === result.steps.length - 1;
+  const complete = stepIndex === result.steps.length - 1;
   $("end-status").textContent = step.char === "." ? "◉ 模型预测了结束符 EOS，名字生成完成" :
     complete && result.truncated ? "◌ 已到长度上限，模型尚未预测结束符" : "◌ 每一笔对应当前的完整概率分布";
   $("end-status").classList.toggle("truncated", complete && result.truncated);
@@ -293,23 +270,14 @@ function stopPlayback() {
 
 function updatePlaybackButton() {
   $("play-process").setAttribute("aria-pressed", String(playing));
-  $("play-process").textContent = playing ? "Ⅱ 暂停" : streaming ? "▶ 继续生成" : "▶ 播放过程";
-}
-
-function scheduleNext(delay = Number($("playback-speed").value)) {
-  clearTimeout(playTimer);
-  playTimer = setTimeout(() => worker.postMessage({ type: "next", id: requestId }), delay);
+  $("play-process").textContent = playing ? "Ⅱ 暂停" : "▶ 播放过程";
 }
 
 function startPlayback() {
   playing = true;
   updatePlaybackButton();
-  if (streaming) {
-    if (results[selected].steps.length) renderStep(results[selected].steps.length - 1);
-    scheduleNext();
-    return;
-  }
   if (stepIndex >= results[selected].steps.length - 1) renderStep(0);
+  else renderStep(stepIndex);
   playTimer = setInterval(() => {
     if (stepIndex >= results[selected].steps.length - 1) { stopPlayback(); return; }
     renderStep(stepIndex + 1);
@@ -325,7 +293,6 @@ $("play-process").addEventListener("click", () => {
 $("next-step").addEventListener("click", () => {
   stopPlayback();
   if (stepIndex < results[selected].steps.length - 1) renderStep(stepIndex + 1);
-  else if (streaming) worker.postMessage({ type: "next", id: requestId });
 });
 $("restart-process").addEventListener("click", () => {
   stopPlayback();

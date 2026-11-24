@@ -7,14 +7,14 @@
   <meta name="description" content="给几个字母，让字符级 RNN 为你生成一个名字。支持前缀、后缀和中间片段补全，还能看到每一步的候选字母与概率。">
   <title>Name Lab · 让字母长成名字</title>
   <link rel="icon" href="./favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./styles.css">
-  <script type="module" src="./app.js"></script>
+  <link rel="stylesheet" href="./styles.css?v=20261124-selection">
+  <script type="module" src="./app.js?v=20261124-selection"></script>
 </head>
 <body>
   <div class="page-shell">
     <header class="site-header">
       <a class="brand" href="./" aria-label="Name Lab 首页"><span class="brand-mark" aria-hidden="true">n<span>↗</span></span><span>name<span class="brand-light">lab</span><sup>字母实验室</sup></span></a>
-      <nav aria-label="主导航"><a href="#process">看看生成过程 <span aria-hidden="true">↘</span></a><a class="source-link" href="https://github.com/vibrant700/rnn-name-lab" target="_blank" rel="noopener">GitHub <span aria-hidden="true">↗</span></a></nav>
+      <nav aria-label="主导航"><a href="#candidates">先挑一个名字 <span aria-hidden="true">↘</span></a><a class="source-link" href="https://github.com/vibrant700/rnn-name-lab" target="_blank" rel="noopener">GitHub <span aria-hidden="true">↗</span></a></nav>
     </header>
 
     <main>
@@ -47,8 +47,16 @@
         </form>
 
         <div class="results-panel">
-      <section class="process-panel" id="process" aria-labelledby="process-title">
-        <div class="process-top"><div><p class="section-kicker">02 / 逐字生成</p><h2 id="process-title">看一个名字，慢慢诞生。</h2></div><button id="save-image" class="quiet-button" type="button" disabled>保存过程图 <span aria-hidden="true">↗</span></button></div>
+          <section class="candidate-section" id="candidates" aria-labelledby="candidates-title">
+          <div class="section-kicker"><span>02 / 先选一个名字</span><span id="batch-label">YOUR NEXT NAME</span></div>
+          <div class="results-heading"><h2 id="candidates-title">哪一个，让你心动？</h2><span class="selection-hint">选中后，才会展示生成过程 ↓</span></div>
+          <div class="name-grid" id="name-grid" aria-label="生成的名字" aria-busy="true">
+            <div class="empty-card">先给一点灵感。<br><span>点击「生成候选名字」，再选一个喜欢的。</span></div>
+          </div>
+          <div class="results-footnote"><span><i class="legend-dot" aria-hidden="true"></i>高亮部分是你给出的字母</span><span id="generation-timing">字符级 RNN · 真正的逐字生成</span></div>
+          </section>
+      <section class="process-panel" id="process" aria-labelledby="process-title" hidden>
+        <div class="process-top"><div><p class="section-kicker">03 / 逐字展示</p><h2 id="process-title">看选中的名字，慢慢诞生。</h2></div><button id="save-image" class="quiet-button" type="button" disabled>保存过程图 <span aria-hidden="true">↗</span></button></div>
         <div id="process-placeholder" class="process-placeholder">选一个喜欢的名字，看看它如何被写出来。</div>
         <div id="process-content" hidden>
           <div class="process-layout">
@@ -61,12 +69,6 @@
         </div>
       </section>
 
-          <div class="section-kicker"><span>03 / 六种可能</span><span id="batch-label">YOUR NEXT NAME</span></div>
-          <div class="results-heading"><h2>哪一个，让你心动？</h2><span class="selection-hint">点击名字，探索它的诞生 ↓</span></div>
-          <div class="name-grid" id="name-grid" aria-label="生成的名字" aria-busy="true">
-            <div class="empty-card">A little inspiration<br><span>goes a long way.</span></div>
-          </div>
-          <div class="results-footnote"><span><i class="legend-dot" aria-hidden="true"></i>高亮部分是你给出的字母</span><span id="generation-timing">字符级 RNN · 真正的逐字生成</span></div>
           <div class="result-statement"><span class="statement-line" aria-hidden="true"></span><p>名字没有标准答案。<br><em>喜欢，就是它的意义。</em></p><span class="statement-flower" aria-hidden="true">✳</span></div>
         </div>
       </section>

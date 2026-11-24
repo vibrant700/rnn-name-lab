@@ -54,3 +54,51 @@
 @media(min-width:801px) { .hero { padding: 35px 0; } .hero h1 { font-size: 45px; } .hero h1 br { display: none; } .hero-note { min-height: 175px; } .letter-sketch { height: 85px; font-size: 85px; } .sketch-end { font-size: 67px; } .hero-note p { margin: 10px 0 16px; } }
 @media(max-width:1100px) and (min-width:601px) { .results-panel .process-layout { grid-template-columns: 1fr; } .results-panel .name-story { padding-right: 0; border-right: 0; } .results-panel .probability-panel { border-top: 1px solid #e5e9db; padding-top: 20px; } .all-probabilities { grid-template-columns: repeat(6,minmax(0,1fr)); } .timeline-header { align-items: start; gap: 15px; } .timeline-header > div:first-child { white-space: nowrap; } .playback-controls { justify-content: end; } }
 @media(max-width:600px) { .control-panel { position: static; } .results-panel > .process-panel { padding: 22px 18px; margin-bottom: 27px; } .results-panel .process-top h2 { font-size: 19px; line-height: 1.5; } .results-panel .process-top { gap: 8px; } .results-panel .process-layout { gap: 22px; } .results-panel .name-story { padding: 0; } .generation-box .favorite-name { font-size: 39px; } .all-probabilities { grid-template-columns: repeat(5,minmax(0,1fr)); } .distribution-heading { display: block; } .distribution-legend { margin-top: 10px; } .timeline-header { display: block; } .playback-controls { justify-content: space-between; margin-top: 14px; } .playback-controls .play-button { padding: 8px 11px; } .cell-probability { font-size: 7px; } .results-panel .chart-heading h3 { font-size: 12px; } }
+/* 阅读字号小幅调大 */
+body { font-size: 15px; }
+.hero-description { font-size: 14px; }
+.input-label,.temperature-label label { font-size: 13px; }
+.mode-tabs button { font-size: 12px; }
+.generate-button { font-size: 14px; }
+.field-hint,.status-message { font-size: 12px; }
+.example-row,.range-caption,.local-note { font-size: 11px; }
+.section-kicker { font-size: 11px; }
+.selection-hint,.results-footnote { font-size: 11px; }
+.card-name { font-size: clamp(24px,2.3vw,34px); }
+.name-card { height: auto; min-height: 152px; gap: 12px; }
+.card-top,.card-caption { font-size: 10px; }
+.small-label,.story-description,.end-status,.chart-scale { font-size: 12px; }
+.chart-note,.step-note { font-size: 11px; }
+.probability-value { font-size: 12px; }
+.probability-letter { font-size: 22px; }
+.probability-letter.special { font-size: 12px; }
+.generation-box-header,.generation-transition { font-size: 12px; }
+.cell-char { font-size: 20px; }
+.cell-probability { font-size: 11px; }
+.cell-rank { font-size: 9px; }
+.distribution-heading h3 { font-size: 14px; }
+.distribution-legend,.step-counter { font-size: 11px; }
+.playback-controls select,.playback-controls .play-button { font-size: 11px; }
+.timeline-step > small { font-size: 10px; }
+.quiet-button,.text-button { font-size: 12px; }
+.chosen-letter strong { font-size: 12px; }
+.results-panel .chart-heading h3 { font-size: 14px; }
+.results-panel > .process-panel { margin: 30px 0 0; }
+.empty-card { font: 25px/1.6 var(--serif); }
+.empty-card span { font: 13px/1.8 var(--sans); margin-top: 9px; }
+.candidate-section { scroll-margin-top: 20px; }
+@media(max-width:600px) {
+  .hero-description { font-size: 13px; }
+  .mode-tabs button { font-size: 12px; }
+  .card-name { font-size: 25px; }
+  .name-card { min-height: 138px; }
+  .card-top,.card-caption { font-size: 9px; }
+  .results-footnote { font-size: 10px; }
+  .cell-probability { font-size: 10px; }
+  .quiet-button,.text-button { font-size: 11px; }
+  .results-panel .process-top h2 { font-size: 21px; }
+  .playback-controls .play-button { font-size: 11px; padding: 8px; }
+  .timeline-header .step-counter { font-size: 10px; }
+  .empty-card { height: 230px; font-size: 23px; padding: 15px; }
+  .empty-card span { font-size: 12px; text-align: center; }
+}
