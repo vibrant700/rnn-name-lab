@@ -64,20 +64,22 @@ function sample(probabilities, random) {
   return probabilities.length - 1;
 }
 
-function recordStep(model, logits, samplingLogits, random, temperature, before, after) {
+function recordStep(model, logits, samplingLogits, random, temperature, decoding, before, after) {
   const original = softmax(logits);
   const sampling = softmax(samplingLogits, temperature);
-  const selected = sample(sampling, random);
+  const bestAllowed = samplingLogits.reduce((best, value, index) => value > samplingLogits[best] ? index : best, 0);
+  const selected = decoding === "greedy" ? bestAllowed : sample(sampling, random);
   const distribution = original.map((probability, index) => ({ char: model.chars[index], probability }));
   const top5 = [...distribution].sort((a, b) => b.probability - a.probability).slice(0, 5);
   return {
     before, after: after(model.chars[selected]), char: model.chars[selected], top5, distribution,
-    probability: original[selected], samplingProbability: sampling[selected],
+    probability: original[selected], samplingProbability: decoding === "greedy" ? 1 : sampling[selected],
+    bestAllowedChar: model.chars[bestAllowed],
     constrained: Array.from(logits).some((value, i) => value !== samplingLogits[i]),
   };
 }
 
-export function* generateNameSteps(models, { mode, fragment, temperature = 1, maxLength = 20 }, random = Math.random) {
+export function* generateNameSteps(models, { mode, fragment, temperature = 1, maxLength = 20, decoding = "sample" }, random = Math.random) {
   const model = models[mode === "suffix" ? "backward" : mode === "middle" ? "decoder" : "forward"];
   if (!fragment.trim() || [...fragment].some(c => !model.indices.has(c) || ".^#".includes(c))) {
     throw new Error("请输入英文名字片段，可包含字母、空格、连字符或撇号。");
@@ -119,7 +121,7 @@ export function* generateNameSteps(models, { mode, fragment, temperature = 1, ma
         if (template.length === separator + 1) allowed[model.indices.get(".")] = -Infinity;
       }
     }
-    const step = recordStep(model, logits, allowed, random, temperature, display(template),
+    const step = recordStep(model, logits, allowed, random, temperature, decoding, display(template),
       char => char === "." ? display(template) : display(template + char));
     if (mode !== "middle" && template.length >= maxLength && step.char !== ".") {
       // 长度上限不伪装成模型预测的 EOS。
@@ -134,7 +136,7 @@ export function* generateNameSteps(models, { mode, fragment, temperature = 1, ma
     if (mode !== "middle") ({ hidden, logits } = model.step(step.char, hidden));
   }
   if (!terminated) truncated = true;
-  return { name: display(template), mode, fragment, steps, terminated, truncated, temperature };
+  return { name: display(template), mode, fragment, steps, terminated, truncated, temperature, decoding };
 }
 
 export function generateName(models, options, random = Math.random) {

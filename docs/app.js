@@ -4,7 +4,7 @@ const modes = {
   suffix: { label: "名字的结尾", hint: "留一个你喜欢的结尾，向前寻找一个名字。", examples: ["na", "son", "ia"], direction: "←", description: "给定结尾，反向 RNN 从右向左补全。" },
   middle: { label: "名字中间的片段", hint: "保留这几个字母，让模型探索它的左右两侧。", examples: ["ann", "li", "ari"], direction: "↔", description: "编码器读取片段，解码器生成两侧，再将片段嵌入名字。" },
 };
-const worker = new Worker(new URL("./worker.js?v=20261124-selection", import.meta.url), { type: "module" });
+const worker = new Worker(new URL("./worker.js?v=20261124-decoding", import.meta.url), { type: "module" });
 let mode = "prefix";
 let ready = false;
 let loading = true;
@@ -21,6 +21,7 @@ let training;
 const percent = value => `${(value * 100).toFixed(1)}%`;
 const letterLabel = char => ({ ".": "EOS", "^": "开始", "#": "片段", " ": "空格" })[char] || char;
 const titleCase = text => text.charAt(0).toUpperCase() + text.slice(1);
+const decodingLabel = result => result.decoding === "greedy" ? "每步选最大概率" : "随机采样";
 function node(tag, className, text) {
   const element = document.createElement(tag);
   if (className) element.className = className;
@@ -47,9 +48,25 @@ function status(message, error = false) {
 function setBusy(value) {
   busy = value;
   $("generate-button").disabled = value;
+  $("decoding").disabled = value;
   $("generate-label").textContent = value ? "正在生成候选…" : "生成候选名字";
   document.querySelectorAll("[data-mode]").forEach(button => button.disabled = value);
   $("name-grid").setAttribute("aria-busy", String(value));
+}
+
+function updateDecoding() {
+  const greedy = $("decoding").value === "greedy";
+  $("temperature").disabled = greedy;
+  $("temperature-value").textContent = greedy ? "不适用" : Number($("temperature").value).toFixed(1);
+  $("decoding-hint").textContent = greedy
+    ? "每步选允许字符中概率最高的一个。同样输入结果固定，只显示一个候选。"
+    : "按概率随机选择，给同一个片段更多可能。";
+  stopPlayback();
+  selected = -1;
+  results = [];
+  $("process").hidden = true;
+  $("name-grid").replaceChildren(node("div", "empty-card streaming-placeholder", "已切换生成方式，点击生成候选名字。"));
+  status("已切换生成方式，请重新生成并选择名字。");
 }
 
 function updateMode(next, generate = true) {
@@ -94,12 +111,13 @@ function requestGeneration(reveal = false) {
   results = [];
   $("process").hidden = true;
   $("process-content").hidden = true;
-  $("name-grid").replaceChildren(node("div", "empty-card streaming-placeholder", "正在寻找六个名字…"));
+  $("name-grid").replaceChildren(node("div", "empty-card streaming-placeholder", "正在寻找候选名字…"));
   setBusy(true);
   if (reveal) $("candidates").scrollIntoView({ behavior: "smooth", block: "start" });
   status("先生成候选名字，再点选一个查看逐字过程。");
   const seed = crypto.getRandomValues(new Uint32Array(1))[0];
-  worker.postMessage({ type: "generate", id: ++requestId, seed, options: { mode, fragment, temperature: Number($("temperature").value), maxLength: 20 } });
+  worker.postMessage({ type: "generate", id: ++requestId, seed, options: { mode, fragment,
+    decoding: $("decoding").value, temperature: Number($("temperature").value), maxLength: 20 } });
 }
 
 worker.onmessage = ({ data }) => {
@@ -116,7 +134,7 @@ worker.onmessage = ({ data }) => {
     batch++;
     $("batch-label").textContent = `BATCH ${String(batch).padStart(3, "0")}`;
     $("generation-timing").textContent = "点选一个名字，查看逐字生成过程";
-    status("候选已生成。请选择一个名字，再展示字母和概率。");
+    status(results[0].decoding === "greedy" ? "确定的生成结果已就绪。点击名字，查看每一步的最大概率选择。" : "候选已生成。请选择一个名字，再展示字母和概率。");
     selected = -1;
     renderCards();
   } else if (data.type === "error") {
@@ -162,7 +180,10 @@ function chooseResult(index) {
   $("save-image").disabled = false;
   $("copy-name").disabled = false;
   $("restart-process").disabled = false;
-  $("story-description").textContent = `${modes[result.mode].description} 输入片段「${result.fragment}」。`;
+  $("story-description").textContent = `${modes[result.mode].description} 输入片段「${result.fragment}」。生成方式：${decodingLabel(result)}。`;
+  $("chart-note").textContent = result.decoding === "greedy"
+    ? "每步选择允许字符中概率最高的项。Top-5 显示原始模型概率；中间补全的约束可能排除原始第一名。"
+    : "显示模型的原始预测概率。实际采样受到随机性和补全约束影响，选中字符可能不在前五名。";
   $("end-status").textContent = result.terminated ? "◉ 模型预测了结束符 EOS，名字生成完成" : "◌ 已到长度上限，模型尚未预测结束符";
   $("end-status").classList.toggle("truncated", !result.terminated);
   $("prediction-direction").textContent = result.mode === "suffix" ? "向左补一笔" : "下一笔";
@@ -252,7 +273,11 @@ function renderStep(index) {
     row.append(label, track, node("span", "probability-value", percent(candidate.probability)));
     return row;
   }));
-  $("step-note").textContent = step.char === "#" ? `这一笔嵌入输入片段「${result.fragment}」，原样保留。` : step.char === "." ? "这一笔是结束符，不会成为名字的一部分。" : !step.top5.some(candidate => candidate.char === step.char) ? `随机采样选中了「${step.char}」，它不在当前 Top-5 中。` : `这一步选中「${step.char}」，采样概率 ${percent(step.samplingProbability)}。`;
+  $("step-note").textContent = result.decoding === "greedy"
+    ? step.char === step.top5[0].char
+      ? `本步选中原始概率最高的「${letterLabel(step.char)}」（${percent(step.probability)}）。${step.char === "." ? "EOS 表示结束。" : ""}`
+      : `补全约束排除了原始第一名「${letterLabel(step.top5[0].char)}」，本步选允许字符中概率最高的「${letterLabel(step.char)}」。${step.char === "#" ? `嵌入片段「${result.fragment}」。` : ""}`
+    : step.char === "#" ? `这一笔嵌入输入片段「${result.fragment}」，原样保留。` : step.char === "." ? "这一笔是结束符，不会成为名字的一部分。" : !step.top5.some(candidate => candidate.char === step.char) ? `随机采样选中了「${step.char}」，它不在当前 Top-5 中。` : `这一步选中「${step.char}」，采样概率 ${percent(step.samplingProbability)}。`;
   [...$("timeline").children].forEach((button, i) => button.setAttribute("aria-pressed", String(i === index)));
   if (playing) {
     const item = $("timeline").children[index];
@@ -327,7 +352,7 @@ function exportImage() {
   context.fillRect(0, 0, width, canvas.height);
   text("name lab / 一个名字的诞生", 70, 65, 18, "#6b7b58");
   text(titleCase(result.name), 70, 140, 64, "#1c2821", "Georgia, serif");
-  text(`${modes[result.mode].label}「${result.fragment}」 · ${result.steps.length} 个预测步骤 · ${result.terminated ? "以 EOS 结束" : "达到长度上限，未预测 EOS"}`, 72, 185, 17, "#758167");
+  text(`${modes[result.mode].label}「${result.fragment}」 · ${decodingLabel(result)} · ${result.steps.length} 个预测步骤 · ${result.terminated ? "以 EOS 结束" : "达到长度上限，未预测 EOS"}`, 72, 185, 17, "#758167");
   result.steps.forEach((step, index) => {
     const x = 70 + index % 3 * 450, y = 230 + Math.floor(index / 3) * cellHeight;
     context.fillStyle = "#fffefa";
@@ -347,7 +372,7 @@ function exportImage() {
       text(percent(candidate.probability), x + 333, top + 12, 12, "#718061");
     });
   });
-  text("Top-5 为原始模型概率；实际采样受随机性和补全约束影响。  ·  namelab", 72, canvas.height - 40, 14, "#8b967c");
+  text("Top-5 为原始模型概率；实际选择受生成方式和补全约束影响。  ·  namelab", 72, canvas.height - 40, 14, "#8b967c");
   canvas.toBlob(blob => {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -390,6 +415,7 @@ fetch("./assets/training.json").then(response => {
 $("training-model").addEventListener("change", renderLossChart);
 $("generator-form").addEventListener("submit", event => { event.preventDefault(); requestGeneration(true); });
 $("temperature").addEventListener("input", () => $("temperature-value").textContent = Number($("temperature").value).toFixed(1));
+$("decoding").addEventListener("change", updateDecoding);
 document.querySelectorAll("[data-mode]").forEach(button => {
   button.addEventListener("click", () => updateMode(button.dataset.mode));
   button.addEventListener("keydown", event => {

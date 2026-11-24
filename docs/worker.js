@@ -1,4 +1,4 @@
-import { createModels, generateName, seededRandom } from "./engine.js?v=20261124-selection";
+import { createModels, generateName, seededRandom } from "./engine.js?v=20261124-decoding";
 
 let models;
 self.onmessage = async ({ data }) => {
@@ -12,7 +12,8 @@ self.onmessage = async ({ data }) => {
       self.postMessage({ type: "ready" });
     } else if (data.type === "generate") {
       const random = seededRandom(data.seed);
-      const results = Array.from({ length: 6 }, () => generateName(models, data.options, random));
+      const count = data.options.decoding === "greedy" ? 1 : 6;
+      const results = Array.from({ length: count }, () => generateName(models, data.options, random));
       self.postMessage({ type: "results", results, seed: data.seed, id: data.id });
     }
   } catch (error) {

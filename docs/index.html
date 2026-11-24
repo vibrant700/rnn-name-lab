@@ -7,8 +7,8 @@
   <meta name="description" content="给几个字母，让字符级 RNN 为你生成一个名字。支持前缀、后缀和中间片段补全，还能看到每一步的候选字母与概率。">
   <title>Name Lab · 让字母长成名字</title>
   <link rel="icon" href="./favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./styles.css?v=20261124-selection">
-  <script type="module" src="./app.js?v=20261124-selection"></script>
+  <link rel="stylesheet" href="./styles.css?v=20261124-decoding">
+  <script type="module" src="./app.js?v=20261124-decoding"></script>
 </head>
 <body>
   <div class="page-shell">
@@ -38,6 +38,7 @@
             <p class="field-hint" id="fragment-hint">输入一到几个英文字母，补全后面的可能。</p>
             <div class="example-row"><span>试试看</span><div id="examples"></div></div>
           </div>
+          <div class="decoding-field"><label for="decoding">生成方式</label><select id="decoding" disabled aria-describedby="decoding-hint"><option value="sample">随机采样</option><option value="greedy">每步选最大概率</option></select><p id="decoding-hint">按概率随机选择，给同一个片段更多可能。</p></div>
           <div class="temperature-label"><label for="temperature">一点随机性</label><output id="temperature-value" for="temperature">1.0</output></div>
           <input class="temperature" id="temperature" type="range" min="0.6" max="1.4" step="0.1" value="1">
           <div class="range-caption"><span>更稳妥</span><span>更多惊喜</span></div>
@@ -61,7 +62,7 @@
         <div id="process-content" hidden>
           <div class="process-layout">
             <div class="name-story"><div class="story-header"><span class="small-label">名字在这里逐字长出来</span><button id="copy-name" class="text-button" type="button">复制名字 ↗</button></div><div class="generation-box"><div class="generation-box-header"><span class="live-dot" aria-hidden="true"></span><span id="generation-phase">等待第一笔</span></div><div id="favorite-name" class="favorite-name" aria-live="polite" aria-atomic="true"></div><div id="generation-transition" class="generation-transition"></div></div><p id="story-description" class="story-description"></p><div id="end-status" class="end-status"></div><div class="step-preview"><div class="small-label" id="step-context-label">预测前的片段</div><div id="step-before" class="step-before"></div><div class="prediction-arrow"><span id="prediction-direction">下一笔</span><span aria-hidden="true">↘</span></div><div class="chosen-letter"><span id="chosen-letter"></span><div><span class="small-label">实际选中</span><strong id="chosen-probability"></strong></div></div></div></div>
-            <div class="probability-panel"><div class="chart-heading"><h3>此刻，最可能的 5 个字母</h3><span class="chart-tag">TOP 5</span></div><div class="chart-scale"><span>模型预测概率</span><span id="chart-max">100%</span></div><div id="probability-bars" class="probability-bars" role="list" aria-label="前五个候选字符及概率"></div><p class="chart-note">显示模型的原始预测概率。实际采样还受到随机性和补全约束的影响，选中字符可能不在前五名。</p><p class="step-note" id="step-note"></p></div>
+            <div class="probability-panel"><div class="chart-heading"><h3>此刻，最可能的 5 个字母</h3><span class="chart-tag">TOP 5</span></div><div class="chart-scale"><span>模型预测概率</span><span id="chart-max">100%</span></div><div id="probability-bars" class="probability-bars" role="list" aria-label="前五个候选字符及概率"></div><p class="chart-note" id="chart-note">显示模型的原始预测概率。实际采样还受到随机性和补全约束的影响，选中字符可能不在前五名。</p><p class="step-note" id="step-note"></p></div>
           </div>
           <div class="distribution-panel"><div class="distribution-heading"><h3>全部字符的预测概率</h3><div class="distribution-legend"><span><i class="top5-swatch"></i>Top-5</span><span><i class="selected-swatch"></i>本步选中</span></div></div><div id="all-probabilities" class="all-probabilities" role="list" aria-label="模型全部字符的预测概率"></div></div>
           <div class="timeline-header"><div><span class="small-label">生成轨迹</span><span id="step-counter" class="step-counter"></span></div><div class="playback-controls"><label class="visually-hidden" for="playback-speed">生成演示速度</label><select id="playback-speed" aria-label="生成演示速度"><option value="1600">慢速</option><option value="900" selected>正常</option><option value="400">快速</option></select><button id="restart-process" class="play-button" type="button">↺ 重播</button><button id="next-step" class="play-button" type="button">单步 →</button><button id="play-process" class="play-button" type="button" aria-pressed="false"><span aria-hidden="true">▶</span> 播放过程</button></div></div>

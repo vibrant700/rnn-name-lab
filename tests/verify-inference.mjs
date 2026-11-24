@@ -55,4 +55,33 @@ for (const [mode, fragment] of [["prefix", "al"], ["suffix", "na"], ["middle", "
   }
 }
 assert.ok(terminated > 0);
-console.log(`PASS: ${steps} PyTorch/JavaScript steps; max error ${maxError.toExponential(3)}; ${cases} generation cases (${terminated} EOS-terminated); deterministic seeds and length/fragment constraints.`);
+let greedyCases = 0;
+for (const [mode, fragment] of [["prefix", "al"], ["suffix", "na"], ["middle", "ann"], ["middle", "a".repeat(18)]]) {
+  const baseline = generateName(models, { mode, fragment, decoding: "greedy" }, () => { throw new Error("Greedy decoding must not sample randomness"); });
+  for (const temperature of [.6, 1, 1.4]) {
+    for (let seed = 0; seed < 10; seed++) {
+      const result = generateName(models, { mode, fragment, temperature, decoding: "greedy" }, seededRandom(seed));
+      assert.equal(result.name, baseline.name);
+      assert.deepEqual(result.steps.map(step => step.char), baseline.steps.map(step => step.char));
+      for (const step of result.steps) {
+        let allowed = step.distribution;
+        if (mode === "middle") {
+          const separator = step.templateBefore.indexOf("#");
+          const forceSeparator = separator < 0 && step.index - 1 === 20 - fragment.length - 1;
+          allowed = allowed.filter(candidate => {
+            if (forceSeparator) return candidate.char === "#";
+            if (candidate.char === "^") return false;
+            if (separator < 0) return candidate.char !== "." && (candidate.char !== "#" || step.templateBefore.length > 0);
+            return candidate.char !== "#" && (candidate.char !== "." || step.templateBefore.length > separator + 1);
+          });
+        }
+        const maximum = [...allowed].sort((a, b) => b.probability - a.probability)[0];
+        assert.equal(step.char, maximum.char);
+        assert.equal(step.samplingProbability, 1);
+      }
+      if (mode === "middle") assert.ok(result.name.slice(1, -1).includes(fragment));
+      greedyCases++;
+    }
+  }
+}
+console.log(`PASS: ${steps} PyTorch/JavaScript steps; max error ${maxError.toExponential(3)}; ${cases} sampled cases (${terminated} EOS-terminated); ${greedyCases} greedy cases; greedy argmax over eligible characters, no RNG, invariant to temperature/seed.`);
