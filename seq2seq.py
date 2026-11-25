@@ -20,7 +20,7 @@ from names_rnn import (EOS, HIDDEN_SIZE, RNN, build_vocab, char_to_tensor, load_
 SOS = "^"            # 起始符（解码器的开始信号，名字里不会出现）
 SEP = "#"            # 片段占位符（生成时替换回输入的片段）
 EPOCHS = 50
-LEARNING_RATE = 0.005
+LEARNING_RATE = 0.001
 
 
 def make_pairs(names, per_name=1):

@@ -1,8 +1,0 @@
-{
-  "name": "rnn-name-lab",
-  "private": true,
-  "type": "module",
-  "scripts": {
-    "check": "node --check docs/engine.js && node --check docs/worker.js && node --check docs/app.js"
-  }
-}

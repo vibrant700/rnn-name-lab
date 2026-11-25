@@ -32,9 +32,9 @@ def validate_fragment(value, char_to_idx):
         raise ValueError("含不支持的字符；请使用数据集中的字母、空格、连字符或撇号")
 
 
-# 生成（前向/反向通用）：从 prefix 往后采样
-def generate_rnn(model, prefix, char_to_idx, idx_to_char, max_len=20):
-    """给定前缀，按概率采样后续字符，直到结束符。"""
+# 生成（前向/反向通用）：从 prefix 往后生成
+def generate_rnn(model, prefix, char_to_idx, idx_to_char, max_len=20, decoding="sample"):
+    """给定前缀，随机采样或贪心选择后续字符，直到结束符。"""
     validate_fragment(prefix, char_to_idx)
     model.eval()
     with torch.no_grad():
@@ -44,9 +44,12 @@ def generate_rnn(model, prefix, char_to_idx, idx_to_char, max_len=20):
             output, hidden = model(char_to_tensor(c, char_to_idx), hidden)
 
         result = prefix
-        for _ in range(max_len):   # 采样后续字符
-            prob = torch.softmax(output, dim=1)        # 输出转概率
-            idx = torch.multinomial(prob, 1).item()    # 按概率采样
+        for _ in range(max_len):
+            if decoding == "greedy":
+                idx = output.argmax(dim=1).item()
+            else:
+                prob = torch.softmax(output, dim=1)
+                idx = torch.multinomial(prob, 1).item()
             c = idx_to_char[idx]
             if c == EOS:
                 break
@@ -56,7 +59,7 @@ def generate_rnn(model, prefix, char_to_idx, idx_to_char, max_len=20):
 
 
 # 生成（seq2seq）：给中间片段，生成完整名字
-def generate_middle(encoder, decoder, fragment, char_to_idx, idx_to_char, max_len=20):
+def generate_middle(encoder, decoder, fragment, char_to_idx, idx_to_char, max_len=20, decoding="sample"):
     """约束解码：一个 SEP，左右各至少一个数据字符；max_len 为完整名字上限。"""
     validate_fragment(fragment, char_to_idx)
     if max_len < len(fragment) + 2:
@@ -92,8 +95,11 @@ def generate_middle(encoder, decoder, fragment, char_to_idx, idx_to_char, max_le
                 logits[0, char_to_idx[SEP]] = -torch.inf
                 if len(result) == sep_position + 1:
                     logits[0, char_to_idx[EOS]] = -torch.inf
-            prob = torch.softmax(logits, dim=1)
-            idx = torch.multinomial(prob, 1).item()
+            if decoding == "greedy":
+                idx = logits.argmax(dim=1).item()
+            else:
+                prob = torch.softmax(logits, dim=1)
+                idx = torch.multinomial(prob, 1).item()
             c = idx_to_char[idx]
             if c == EOS:
                 break
@@ -122,6 +128,8 @@ def main():
     decoder.load_state_dict(seq_checkpoint["models"]["decoder"])
 
     # 交互式生成
+    decoding = "greedy" if input("生成方式：1=随机采样  2=贪心解码（默认1）：").strip() == "2" else "sample"
+    count = 1 if decoding == "greedy" else 5
     print("模式：1=给开头  2=给结尾  3=给中间  回车=退出")
     while True:
         mode = input("模式：").strip()
@@ -132,8 +140,8 @@ def main():
             except ValueError as exc:
                 print(f"  {exc}")
                 continue
-            for _ in range(5):
-                print("  " + generate_rnn(forward, prefix, cti, itc))
+            for _ in range(count):
+                print("  " + generate_rnn(forward, prefix, cti, itc, decoding=decoding))
         elif mode == "2":
             suffix = input("结尾：").strip().lower()
             try:
@@ -141,8 +149,8 @@ def main():
             except ValueError as exc:
                 print(f"  {exc}")
                 continue
-            for _ in range(5):
-                rev = generate_rnn(backward, suffix[::-1], cti, itc)
+            for _ in range(count):
+                rev = generate_rnn(backward, suffix[::-1], cti, itc, decoding=decoding)
                 print("  " + rev[::-1])
         elif mode == "3":
             fragment = input("中间：").strip().lower()
@@ -153,8 +161,8 @@ def main():
             except ValueError as exc:
                 print(f"  {exc}")
                 continue
-            for _ in range(5):
-                print("  " + generate_middle(encoder, decoder, fragment, cti_s, itc_s))
+            for _ in range(count):
+                print("  " + generate_middle(encoder, decoder, fragment, cti_s, itc_s, decoding=decoding))
         else:
             break
 
